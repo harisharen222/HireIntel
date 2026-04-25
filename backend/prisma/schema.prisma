@@ -1,0 +1,165 @@
+// TalentMatch AI — Prisma schema
+// Postgres 16 + pgvector 0.7
+// The `Unsupported("vector(384)")` type is the recommended Prisma pattern
+// for pgvector columns; raw SQL is used for similarity queries.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+enum Role {
+  CANDIDATE
+  RECRUITER
+  ADMIN
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+  DRAFT
+}
+
+enum MatchVerdict {
+  STRONG_FIT
+  MEDIUM_FIT
+  WEAK_FIT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         Role     @default(CANDIDATE)
+  isActive     Boolean  @default(true)
+  failedLoginAttempts Int @default(0)
+  lockedUntil  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cvs          Cv[]
+  jobsPosted   Job[]          @relation("JobsByRecruiter")
+  refreshTokens RefreshToken[]
+  matchRuns    MatchRun[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique              // SHA-256 of the opaque token
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Cv {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalFilename String
+  storagePath      String                     // on-disk path, not web-served
+  rawText          String   @db.Text
+  skills           String[]
+  yearsExperience  Int
+  embedding        Unsupported("vector(384)") // 384-d MiniLM embedding
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  matches MatchResult[]
+
+  @@index([userId])
+  @@map("cvs")
+}
+
+model Job {
+  id              String   @id @default(cuid())
+  recruiterId     String
+  recruiter       User     @relation("JobsByRecruiter", fields: [recruiterId], references: [id], onDelete: Cascade)
+  title           String
+  company         String
+  description     String   @db.Text
+  requiredSkills  String[]
+  minYears        Int      @default(0)
+  location        String?
+  status          JobStatus @default(OPEN)
+  embedding       Unsupported("vector(384)")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  matches MatchResult[]
+
+  @@index([recruiterId])
+  @@index([status])
+  @@map("jobs")
+}
+
+model MatchRun {
+  id            String   @id @default(cuid())
+  userId        String                      // who triggered it
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cvId          String?
+  jobId         String?
+  topK          Int      @default(10)
+  durationMs    Int
+  createdAt     DateTime @default(now())
+
+  results MatchResult[]
+
+  @@index([userId])
+  @@map("match_runs")
+}
+
+model MatchResult {
+  id                 String   @id @default(cuid())
+  matchRunId         String
+  matchRun           MatchRun @relation(fields: [matchRunId], references: [id], onDelete: Cascade)
+  cvId               String
+  cv                 Cv       @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  jobId              String
+  job                Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  semanticSimilarity Float
+  skillOverlap       Float
+  experienceFit      Float
+  finalScore         Float
+  matchedSkills      String[]
+  missingSkills      String[]
+  verdict            MatchVerdict
+  createdAt          DateTime @default(now())
+
+  @@index([matchRunId])
+  @@index([cvId])
+  @@index([jobId])
+  @@index([finalScore(sort: Desc)])
+  @@map("match_results")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String                          // e.g. "login.success", "match.run"
+  ip        String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt(sort: Desc)])
+  @@map("audit_logs")
+}

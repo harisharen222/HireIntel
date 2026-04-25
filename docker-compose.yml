@@ -1,0 +1,100 @@
+# TalentMatch AI — full stack
+#
+# Trust zones:
+#   - Public (host ports): frontend :5173, backend :4000
+#   - Internal only (no host ports): ai-service, postgres
+# The AI service and database are reachable only by Docker-internal DNS
+# (http://ai-service:8000, postgres:5432). This enforces the security boundary.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-talentmatch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-talentmatch}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-talentmatch} -d ${POSTGRES_DB:-talentmatch}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-talentmatch}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-talentmatch}
+      UPLOAD_DIR: /data/uploads
+      LOG_LEVEL: INFO
+    volumes:
+      - uploads:/data/uploads
+      # Optional: persist the HuggingFace model cache so rebuilds don't re-download.
+      - hf_cache:/home/app/.cache/huggingface
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s  # model warmup can take a while
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-talentmatch}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-talentmatch}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
+      AI_SERVICE_URL: http://ai-service:8000
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      UPLOAD_DIR: /data/uploads
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-5242880}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    # Run migrations on start, then launch the server.
+    command: sh -c "npx prisma migrate deploy && node dist/server.js"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pg_data:
+  uploads:
+  hf_cache:

@@ -1,0 +1,64 @@
+# ----- Secrets -----
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ----- Node / JS -----
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+.vite/
+.eslintcache
+coverage/
+.nyc_output/
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ----- Prisma -----
+backend/prisma/migrations/dev/
+*.db
+*.db-journal
+
+# ----- Uploads (dev only) -----
+data/
+uploads/
+
+# ----- Docker -----
+.dockerignore.bak
+
+# ----- IDE / OS -----
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ----- Logs -----
+logs/
+*.log
+
+# ----- HuggingFace / model caches -----
+.cache/
+hf_cache/
+.env
