@@ -7,7 +7,7 @@ const REFRESH_COOKIE = 'refresh_token';
 const baseCookieOpts = {
   httpOnly: true,
   secure: isProd,                    // only over HTTPS in prod
-  sameSite: 'strict' as const,       // tightest setting; browser won't attach on cross-site requests
+  sameSite: 'none' as const,         // must be 'none' for cross-domain cookies (Vercel -> Render)
   path: '/',
 };
 
