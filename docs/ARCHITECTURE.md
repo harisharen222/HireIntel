@@ -26,11 +26,12 @@ This document explains *why* the system is shaped the way it is, not just what i
                                 ▼                          ▼
                 ┌─────────────────────────────┐   ┌─────────────────────────┐
                 │  FastAPI AI Microservice    │   │  PostgreSQL 16          │
-                │  • /parse  (PDF → text)     │   │  + pgvector             │
-                │  • /embed  (text → vector)  │   │  HNSW index on          │
-                │  • /match  (query → topK)   │   │  embedding column       │
-                │  • Sentence-Transformer     │   └─────────────────────────┘
-                │  • Scorer + Explainer       │
+                │  • /parse  (PDF → text)     │   │  Relational Data        │
+                │  • /embed  (text → vector)  │   └─────────────────────────┘
+                │  • /match  (query → topK)   │   ┌─────────────────────────┐
+                │  • /agent/run (LangGraph)   │   │  MongoDB Atlas          │
+                │  • Sentence-Transformer     │   │  + Vector Search        │
+                │  • Scorer + Explainer       │   └─────────────────────────┘
                 └─────────────────────────────┘
                     (reachable only on the
                      Docker-internal network)
@@ -84,22 +85,24 @@ In `docker-compose.yml`, only the frontend and backend expose ports to the host.
 5.  Node BFF   → POST http://ai-service:8000/embed  { text }
 6.  AI service → returns 384-d float vector
 7.  Node BFF   → Prisma transaction:
-                 INSERT cv (..., embedding::vector)
+                 INSERT cv (relational data to Postgres)
                  UPDATE user.hasCv = true
-8.  Node BFF   → 201 Created with CV summary
+8.  Node BFF   → POST http://ai-service:8000/vectors/upsert (save vector to Mongo)
+9.  Node BFF   → 201 Created with CV summary
 
-9.  Browser    → POST /api/match/run { cvId, topK: 10 }
-10. Node BFF   → POST http://ai-service:8000/match { cvId, topK }
-11. AI service → loads cv.embedding from DB (direct read),
-                 runs a parameterized SQL against pgvector with ORDER BY
-                 embedding <=> $1 LIMIT $topK, applies hybrid scorer,
+10. Browser    → POST /api/match/run { cvId, topK: 10 }
+11. Node BFF   → POST http://ai-service:8000/match { cvId, topK }
+12. AI service → loads cv.embedding from MongoDB (direct read),
+                 runs a $vectorSearch against MongoDB limit $topK,
+                 fetches relational data from Postgres using matched IDs,
+                 applies hybrid scorer,
                  returns ranked list with breakdown & explanation
-12. Node BFF   → returns matches to browser
+13. Node BFF   → returns matches to browser
 ```
 
 Two things worth noting:
 
-- The AI service has **read access to the DB** for `/match` specifically, because running the similarity query inside Postgres is far cheaper than streaming every embedding to Python. Writes (INSERT, UPDATE) remain a Node-only responsibility — that keeps the audit trail in one place.
+- The AI service has **read access to the DB** (Mongo + Postgres) for `/match` specifically. Writes remain a Node-only responsibility.
 - The parse + embed steps could be a single AI-service endpoint (`/ingest`), and in a real deployment I'd merge them to save a round-trip. They're split here to keep each concern independently testable.
 
 ## 6. Failure modes & what the system does
@@ -115,8 +118,7 @@ Two things worth noting:
 ## 7. What I deliberately did *not* do (and why)
 
 - **No message queue (RabbitMQ / Kafka).** For this load profile (interactive upload + match), sync REST is simpler and easier to reason about. A queue would be the right call if we added batch bulk-matching.
-- **No dedicated vector DB (Pinecone / Weaviate).** At portfolio scale (<1M vectors), `pgvector` with an HNSW index is as fast in practice and keeps the stack single-database. Swapping it in later is a two-hour change behind a `VectorStore` interface.
-- **No GraphQL.** REST + OpenAPI is lighter for this surface area and is what most BFFs in consulting shops actually ship.
+- **GraphQL.** REST + OpenAPI is lighter for this surface area and is what most BFFs in consulting shops actually ship.
 - **No microservice per entity** (user-service, job-service, etc.). The split between Node and FastAPI is a *capability* boundary (web vs ML), not an entity boundary. Splitting further would be over-engineering for the problem.
 
 ## 8. Extending it

@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     # DB (read-only access; writes happen via the Node BFF).
     DATABASE_URL: str
 
+
+
+    # Groq (Llama 3.3)
+    GROQ_API_KEY: str
+
     # Runtime.
     LOG_LEVEL: str = "INFO"
     CORS_ORIGINS: str = ""  # not used in prod — service is internal-only

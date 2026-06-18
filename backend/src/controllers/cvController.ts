@@ -26,7 +26,7 @@ export const uploadCv = async (
     );
 
     // Call AI service: parse → embed
-    const parsed = await aiClient.parse(saved.storagePath);
+    const parsed = await aiClient.parse(req.file.buffer, req.file.originalname);
     if (!parsed.text || parsed.text.length < 200) {
       throw badRequest(
         'Could not extract text from this PDF. It may be scanned or password-protected.'
@@ -34,30 +34,29 @@ export const uploadCv = async (
     }
     const embed = await aiClient.embed(parsed.text);
 
-    // Persist atomically. Prisma doesn't natively support vector writes in `create`,
-    // so we do a two-step: create with placeholder, then raw-UPDATE the embedding.
     const filename = req.file!.originalname.slice(0, 200);
-    const embeddingLiteral = `[${embed.embedding.join(',')}]`;
 
-    await prisma.$executeRaw`
-      INSERT INTO cvs (
-        id, "userId", "originalFilename", "storagePath",
-        "rawText", skills, "yearsExperience", embedding,
-        "createdAt", "updatedAt"
-      ) VALUES (
-        ${cvId}, ${req.user!.id}, ${filename}, ${saved.storagePath},
-        ${parsed.text}, ${parsed.skills}::text[], ${parsed.yearsExperience},
-        ${embeddingLiteral}::vector,
-        NOW(), NOW()
-      )
-    `;
+    const cv = await prisma.cv.create({
+      data: {
+        id: cvId,
+        userId: req.user.id,
+        originalFilename: filename,
+        storagePath: saved.storagePath,
+        rawText: parsed.text,
+        skills: parsed.skills,
+        yearsExperience: parsed.yearsExperience,
+      }
+    });
 
-    const cv = {
-      id: cvId,
-      skills: parsed.skills,
-      yearsExperience: parsed.yearsExperience,
-      createdAt: new Date(),
-    };
+    // Save vector to MongoDB Atlas via AI service
+    await aiClient.upsertVector({
+      doc_id: cvId,
+      vector: embed.embedding,
+      metadata: {},
+      collection: 'cvs'
+    });
+
+
 
     audit('cv.uploaded', {
       userId: req.user.id,
@@ -148,6 +147,7 @@ export const deleteCv = async (
     if (cv.userId !== req.user.id && req.user.role !== 'ADMIN') throw forbidden();
 
     await prisma.cv.delete({ where: { id: cv.id } });
+    await aiClient.deleteVector('cvs', cv.id).catch(err => logger.warn({ err }, 'Failed to delete vector from Mongo'));
     audit('cv.deleted', { userId: req.user.id, metadata: { cvId: cv.id }, ip: req.ip });
     res.json({ ok: true });
   } catch (err) {

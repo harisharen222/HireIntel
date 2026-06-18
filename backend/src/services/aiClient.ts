@@ -90,11 +90,16 @@ const wrap = async <T>(fn: () => Promise<T>, label: string): Promise<T> => {
 };
 
 export const aiClient = {
-  parse: (storagePath: string): Promise<ParseResult> =>
-    wrap(
-      () => http.post<ParseResult>('/parse', { storagePath }).then((r) => r.data),
-      'parse'
-    ),
+  parse: (fileBuffer: Buffer, filename: string): Promise<ParseResult> =>
+    wrap(() => {
+      const formData = new FormData();
+      formData.append('file', new Blob([fileBuffer]), filename);
+      return http
+        .post<ParseResult>('/parse', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        .then((r) => r.data);
+    }, 'parse'),
 
   embed: (text: string): Promise<EmbedResult> =>
     wrap(() => http.post<EmbedResult>('/embed', { text }).then((r) => r.data), 'embed'),
@@ -110,5 +115,22 @@ export const aiClient = {
           .post<{ matches: MatchResultFromAi[] }>('/match', args)
           .then((r) => r.data.matches),
       'match'
+    ),
+
+  upsertVector: (args: {
+    doc_id: string;
+    vector: number[];
+    metadata: Record<string, any>;
+    collection: string;
+  }): Promise<{ ok: boolean }> =>
+    wrap(
+      () => http.post<{ ok: boolean }>('/vectors/upsert', args).then((r) => r.data),
+      'upsertVector'
+    ),
+
+  deleteVector: (collection: string, doc_id: string): Promise<{ ok: boolean }> =>
+    wrap(
+      () => http.delete<{ ok: boolean }>(`/vectors/${collection}/${doc_id}`).then((r) => r.data),
+      'deleteVector'
     ),
 };

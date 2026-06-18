@@ -20,48 +20,18 @@ log = logging.getLogger(__name__)
 _WHITESPACE_RE = re.compile(r"\s+")
 
 
-def _safe_path(storage_path: str) -> Path:
-    """Reject any path that escapes UPLOAD_DIR.
+import io
 
-    The Node BFF already stores files under UPLOAD_DIR/<userId>/<cvId>.pdf,
-    but defense in depth: we re-validate here so a compromised Node
-    instance can't trick us into reading arbitrary files.
-    """
-    root = Path(get_settings().UPLOAD_DIR).resolve()
-    candidate = Path(storage_path).resolve()
-
-    try:
-        candidate.relative_to(root)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Path escapes upload directory",
-        ) from e
-
-    if not candidate.is_file():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found",
-        )
-    if os.path.getsize(candidate) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="File is empty",
-        )
-    return candidate
-
-
-def extract_text(storage_path: str) -> str:
-    path = _safe_path(storage_path)
+def extract_text(file_bytes: bytes) -> str:
     pages: list[str] = []
     try:
-        with pdfplumber.open(path) as pdf:
+        with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
             for page in pdf.pages:
                 t = page.extract_text() or ""
                 if t:
                     pages.append(t)
     except Exception as e:  # malformed PDF
-        log.warning("pdfplumber failed on %s: %s", storage_path, e)
+        log.warning("pdfplumber failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Could not parse PDF (may be corrupt or encrypted)",

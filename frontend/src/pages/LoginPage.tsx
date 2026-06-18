@@ -28,54 +28,125 @@ export const LoginPage = () => {
     }
   };
 
+  const fillDemo = (role: 'candidate' | 'recruiter' | 'admin') => {
+    const emails = {
+      candidate: 'candidate@demo.io',
+      recruiter: 'recruiter@demo.io',
+      admin:     'admin@demo.io',
+    };
+    setEmail(emails[role]);
+    setPassword('Demo1234!');
+  };
+
   return (
-    <div className="container-narrow">
-      <h1>Sign in</h1>
-      <p className="muted" style={{ marginBottom: 24 }}>
-        Welcome back to TalentMatch.
-      </p>
+    <div className="auth-layout">
+      <div className="auth-panel animate-in">
 
-      {error && <div className="error">{error}</div>}
-
-      <form onSubmit={onSubmit}>
-        <div className="form-group">
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
+        {/* Brand */}
+        <div className="auth-logo">
+          <span style={{
+            fontFamily: 'Space Grotesk, sans-serif',
+            fontWeight: 700,
+            fontSize: '1rem',
+            letterSpacing: '-0.01em',
+            color: 'var(--text)',
+          }}>
+            TalentMatch<span style={{ color: 'var(--text-muted)' }}>.</span>
+          </span>
         </div>
-        <div className="form-group">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
+
+        <h1 className="auth-heading">Sign in</h1>
+        <p className="auth-sub">Welcome back. Enter your credentials.</p>
+
+        {error && <div className="error">{error}</div>}
+
+        <form onSubmit={onSubmit}>
+          <div className="form-group">
+            <label htmlFor="login-email">Email</label>
+            <input
+              id="login-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              placeholder="you@company.com"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="login-password">Password</label>
+            <input
+              id="login-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              placeholder="••••••••••"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={busy}
+            style={{ width: '100%', padding: '14px', marginTop: 4, fontSize: '0.75rem' }}
+          >
+            {busy ? (
+              <span className="flex" style={{ justifyContent: 'center' }}>
+                <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
+                Signing in
+              </span>
+            ) : (
+              <>Sign in <span className="btn-arrow">→</span></>
+            )}
+          </button>
+        </form>
+
+        {/* Horizontal rule */}
+        <div style={{ margin: '28px 0', borderTop: '1px solid var(--border)' }} />
+
+        {/* Demo accounts */}
+        <div>
+          <p style={{
+            fontSize: '0.65rem',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            color: 'var(--text-muted)',
+            marginBottom: 10,
+          }}>
+            Demo accounts — click to autofill
+          </p>
+          <div className="demo-grid">
+            {(['candidate', 'recruiter', 'admin'] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                className="demo-pill"
+                onClick={() => fillDemo(r)}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 8 }}>
+            All use password: <code style={{
+              background: 'var(--bg-elevated)',
+              padding: '1px 6px',
+              borderRadius: '3px',
+              fontSize: '0.85em',
+            }}>Demo1234!</code>
+          </p>
         </div>
-        <button type="submit" disabled={busy} style={{ width: '100%', marginTop: 8 }}>
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
 
-      <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
-        Don't have an account? <Link to="/register">Create one</Link>
-      </p>
+        <div style={{ marginTop: 36 }}>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            No account?{' '}
+            <Link to="/register" style={{ color: 'var(--text-dim)', borderBottom: '1px solid var(--border)' }}>
+              Create one
+            </Link>
+          </p>
+        </div>
 
-      <div
-        className="card"
-        style={{ marginTop: 32, fontSize: '0.85rem', background: 'transparent' }}
-      >
-        <h3 style={{ marginBottom: 8 }}>Demo accounts</h3>
-        <p className="muted">candidate@demo.io · recruiter@demo.io · admin@demo.io</p>
-        <p className="muted">Password: <code>Demo1234!</code></p>
       </div>
     </div>
   );

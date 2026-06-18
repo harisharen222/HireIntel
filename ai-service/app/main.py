@@ -6,8 +6,9 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
-from app.routers import embed, match, parse
+from app.routers import embed, match, parse, vector, agent
 from app.services import embedder, retrieval
+from app.db.pg import db
 
 logging.basicConfig(
     level=get_settings().LOG_LEVEL,
@@ -20,10 +21,11 @@ log = logging.getLogger("talentmatch.ai")
 async def lifespan(_: FastAPI):
     log.info("Warming up embedding model...")
     embedder.warmup()
+    await db.connect()
     log.info("Ready.")
     yield
     log.info("Shutting down, closing DB pool...")
-    await retrieval.close_pool()
+    await db.disconnect()
 
 
 app = FastAPI(
@@ -52,3 +54,5 @@ async def health() -> JSONResponse:
 app.include_router(parse.router)
 app.include_router(embed.router)
 app.include_router(match.router)
+app.include_router(vector.router)
+app.include_router(agent.router)

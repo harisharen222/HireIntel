@@ -42,6 +42,8 @@ export interface MatchResult {
   verdict: Verdict;
 }
 
+export * from './agent';
+
 export interface AnalyticsData {
   totals: {
     users: number;

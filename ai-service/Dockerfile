@@ -30,9 +30,9 @@ RUN mkdir -p /data/uploads && chown -R app:app /data /app /home/app
 
 USER app
 
-EXPOSE 8000
+EXPOSE 7860
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
-  CMD curl -fs http://localhost:8000/health || exit 1
+  CMD curl -fs http://localhost:7860/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]

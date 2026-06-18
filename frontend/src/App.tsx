@@ -10,6 +10,7 @@ import { JobsListPage } from '@/pages/JobsListPage';
 import { RecruiterDashboard } from '@/pages/RecruiterDashboard';
 import { PostJobPage } from '@/pages/PostJobPage';
 import { AdminAnalyticsPage } from '@/pages/AdminAnalyticsPage';
+import { AgentDashboard } from '@/pages/AgentDashboard';
 
 export const App = () => {
   return (
@@ -60,6 +61,14 @@ export const App = () => {
           element={
             <ProtectedRoute allowedRoles={['RECRUITER', 'ADMIN']}>
               <PostJobPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recruiter/agent"
+          element={
+            <ProtectedRoute allowedRoles={['RECRUITER', 'ADMIN']}>
+              <AgentDashboard />
             </ProtectedRoute>
           }
         />

@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/prisma';
-import { audit } from '../config/logger';
+import { logger, audit } from '../config/logger';
 import { aiClient } from '../services/aiClient';
 import { forbidden, notFound } from '../utils/errors';
 import type { CreateJobInput, UpdateJobInput } from '../validators/schemas';
@@ -24,35 +24,27 @@ export const createJob = async (
     const { company, minYears, location, status } = req.body;
     const skills = requiredSkills;
     const desc = description;
-    const embeddingLiteral = `[${embed.embedding.join(',')}]`;
+    const created = await prisma.job.create({
+      data: {
+        id: jobId,
+        recruiterId: req.user.id,
+        title,
+        company,
+        description: desc,
+        requiredSkills: skills,
+        minYears: minYears ?? 0,
+        location: location ?? null,
+        status: status ?? 'OPEN',
+      }
+    });
 
-    await prisma.$executeRaw`
-      INSERT INTO jobs (
-        id, "recruiterId", title, company, description,
-        "requiredSkills", "minYears", location, status, embedding,
-        "createdAt", "updatedAt"
-      ) VALUES (
-        ${jobId}, ${req.user!.id}, ${title}, ${company}, ${desc},
-        ${skills}::text[], ${minYears ?? 0}, ${location ?? null},
-        ${status ?? 'OPEN'}::"JobStatus",
-        ${embeddingLiteral}::vector,
-        NOW(), NOW()
-      )
-    `;
+    await aiClient.upsertVector({
+      doc_id: jobId,
+      vector: embed.embedding,
+      metadata: {},
+      collection: 'jobs'
+    });
 
-    const created = {
-      id: jobId,
-      title,
-      company,
-      description: desc,
-      requiredSkills: skills,
-      minYears: minYears ?? 0,
-      location: location ?? null,
-      status: status ?? 'OPEN',
-      recruiterId: req.user!.id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
 
     audit('job.created', { userId: req.user.id, metadata: { jobId: created.id }, ip: req.ip });
 
@@ -159,11 +151,12 @@ export const updateJob = async (
         '\n'
       );
       const embed = await aiClient.embed(embedInput);
-      await prisma.$executeRaw`
-        UPDATE jobs
-        SET embedding = ${`[${embed.embedding.join(',')}]`}::vector
-        WHERE id = ${existing.id}
-      `;
+      await aiClient.upsertVector({
+        doc_id: existing.id,
+        vector: embed.embedding,
+        metadata: {},
+        collection: 'jobs'
+      });
     }
 
     audit('job.updated', {
@@ -192,6 +185,7 @@ export const deleteJob = async (
     if (job.recruiterId !== req.user.id && req.user.role !== 'ADMIN') throw forbidden();
 
     await prisma.job.delete({ where: { id: job.id } });
+    await aiClient.deleteVector('jobs', job.id).catch(err => logger.warn({ err }, 'Failed to delete vector from Mongo'));
     audit('job.deleted', { userId: req.user.id, metadata: { jobId: job.id }, ip: req.ip });
     res.json({ ok: true });
   } catch (err) {

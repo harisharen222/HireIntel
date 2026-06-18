@@ -77,7 +77,7 @@ model Cv {
   rawText          String   @db.Text
   skills           String[]
   yearsExperience  Int
-  embedding        Unsupported("vector(384)") // 384-d MiniLM embedding
+  embedding        Unsupported("vector(384)")? // migrated to MongoDB
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -98,7 +98,7 @@ model Job {
   minYears        Int      @default(0)
   location        String?
   status          JobStatus @default(OPEN)
-  embedding       Unsupported("vector(384)")
+  embedding       Unsupported("vector(384)")?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

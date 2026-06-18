@@ -7,6 +7,7 @@ import type {
   AnalyticsData,
   Role,
   JobStatus,
+  AgentRunResponse,
 } from '@/types';
 
 /**
@@ -16,8 +17,8 @@ import type {
  * cross-origin requests. Combined with the backend's strict CORS + explicit
  * frontend origin, this keeps auth state entirely server-side.
  */
-const client: AxiosInstance = axios.create({
-  baseURL: '/api',
+export const client: AxiosInstance = axios.create({
+  baseURL: (import.meta as any).env.VITE_API_URL || '/api',
   withCredentials: true,
   timeout: 30_000,
 });
@@ -132,6 +133,13 @@ export const adminApi = {
 
   listUsers: () =>
     client.get<{ users: User[]; nextCursor: string | null }>('/admin/users').then((r) => r.data),
+};
+
+// ---------- Agent ----------
+
+export const agentApi = {
+  run: (jobId: string, topK: number = 5) =>
+    client.post<AgentRunResponse>('/agent/run', { jobId, topK }).then((r) => r.data),
 };
 
 // ---------- Error helper ----------

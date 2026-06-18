@@ -10,46 +10,66 @@ export const Navbar = () => {
     navigate('/login');
   };
 
-  if (!user) {
-    return (
-      <nav className="navbar">
-        <NavLink to="/" className="navbar-brand">
-          🎯 TalentMatch AI
-        </NavLink>
-        <div className="navbar-links">
-          <NavLink to="/login">Login</NavLink>
-          <NavLink to="/register">Sign up</NavLink>
-        </div>
-      </nav>
-    );
-  }
+  const roleLabel: Record<string, string> = {
+    CANDIDATE: 'Candidate',
+    RECRUITER: 'Recruiter',
+    ADMIN: 'Admin',
+  };
 
   return (
     <nav className="navbar">
+      {/* Logo — "Refine." style */}
       <NavLink to="/" className="navbar-brand">
-        🎯 TalentMatch AI
+        TalentMatch
+        <span style={{ color: 'var(--text-muted)' }}>.</span>
       </NavLink>
+
       <div className="navbar-links">
-        {user.role === 'CANDIDATE' && (
+        {!user && (
+          <>
+            <NavLink to="/login">Sign in</NavLink>
+            <NavLink to="/register" style={{ marginLeft: 4 }}>
+              <button style={{ fontSize: '0.7rem', padding: '7px 16px' }}>
+                Get started
+              </button>
+            </NavLink>
+          </>
+        )}
+
+        {user?.role === 'CANDIDATE' && (
           <>
             <NavLink to="/dashboard">Dashboard</NavLink>
             <NavLink to="/upload">Upload CV</NavLink>
-            <NavLink to="/jobs">Browse jobs</NavLink>
+            <NavLink to="/jobs">Browse Jobs</NavLink>
           </>
         )}
-        {user.role === 'RECRUITER' && (
+
+        {user?.role === 'RECRUITER' && (
           <>
-            <NavLink to="/recruiter">My jobs</NavLink>
-            <NavLink to="/recruiter/new">Post job</NavLink>
+            <NavLink to="/recruiter">My Jobs</NavLink>
+            <NavLink to="/recruiter/new">Post Job</NavLink>
+            <NavLink to="/recruiter/agent">Agent</NavLink>
           </>
         )}
-        {user.role === 'ADMIN' && <NavLink to="/admin">Admin</NavLink>}
-        <span className="muted" style={{ fontSize: '0.85rem' }}>
-          {user.email} ({user.role.toLowerCase()})
-        </span>
-        <button className="secondary" onClick={handleLogout}>
-          Logout
-        </button>
+
+        {user?.role === 'ADMIN' && (
+          <NavLink to="/admin">Admin</NavLink>
+        )}
+
+        {user && (
+          <>
+            <span className="navbar-user" style={{ margin: '0 4px' }}>
+              {user.email.split('@')[0]} · {roleLabel[user.role] ?? user.role}
+            </span>
+            <button
+              className="secondary sm"
+              onClick={handleLogout}
+              style={{ fontSize: '0.68rem', letterSpacing: '0.1em' }}
+            >
+              Logout
+            </button>
+          </>
+        )}
       </div>
     </nav>
   );

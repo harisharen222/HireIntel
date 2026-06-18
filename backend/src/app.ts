@@ -16,6 +16,7 @@ import authRoutes from './routes/authRoutes';
 import cvRoutes from './routes/cvRoutes';
 import jobRoutes from './routes/jobRoutes';
 import { matchRouter, adminRouter } from './routes/index';
+import { agentRoutes } from './routes/agent';
 
 export const buildApp = (): Express => {
   const app = express();
@@ -92,6 +93,7 @@ export const buildApp = (): Express => {
   app.use('/api/jobs', jobRoutes);
   app.use('/api/match', matchRouter);
   app.use('/api/admin', adminRouter);
+  app.use('/api/agent', agentRoutes);
 
   // ---------- 404 + error handler ----------
   app.use((_req, res) => {

@@ -33,6 +33,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-talentmatch}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-talentmatch}
       UPLOAD_DIR: /data/uploads
       LOG_LEVEL: INFO
+      GROQ_API_KEY: ${GROQ_API_KEY}
     volumes:
       - uploads:/data/uploads
       # Optional: persist the HuggingFace model cache so rebuilds don't re-download.
@@ -41,7 +42,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-fs", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-fs", "http://localhost:7860/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -61,7 +62,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-7}
-      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_URL: http://ai-service:7860
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       UPLOAD_DIR: /data/uploads
