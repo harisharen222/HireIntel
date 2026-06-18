@@ -1,81 +1,72 @@
-# HireIntel (formerly TalentMatch AI) 🚀
+# HireIntel (formerly TalentMatch AI)
 
-HireIntel is an AI-powered applicant tracking and candidate matching system. It parses PDF resumes, extracts skills using NLP, generates semantic embeddings, and matches candidates to job descriptions with lightning speed and accuracy.
+HireIntel is an applicant tracking system that automatically matches candidates to job descriptions. It reads resumes, identifies skills, and compares them against job requirements using artificial intelligence.
 
-## 🌟 Key Features
+## Features
 
-- **Smart CV Parsing**: Automatically extracts text, years of experience, and skills from uploaded PDF resumes using `pdfplumber`.
-- **Semantic Vector Matching**: Uses Hugging Face's `all-MiniLM-L6-v2` to create vector embeddings of resumes and job descriptions, performing similarity searches to find the perfect fit.
-- **Microservice Architecture**: A robust three-tier architecture separating the React frontend, Node.js API Gateway, and Python AI Engine.
-- **Secure & Ephemeral**: PDF files are streamed entirely in-memory using multipart uploads between the backend and AI service. No residual files are left on the servers.
-- **Cloud-Ready**: Designed to be deployed seamlessly across modern free-tier cloud providers (Supabase, Hugging Face Spaces, Render, Vercel).
+- **Resume Parsing**: Reads PDF resumes and extracts text, years of experience, and skills.
+- **Semantic Matching**: Uses the `all-MiniLM-L6-v2` AI model to understand the meaning behind resumes and job descriptions, making the matching process highly accurate.
+- **Distributed Architecture**: The system is split into multiple parts (frontend, backend API, AI service, and database) so it can run entirely on free cloud platforms without performance issues.
+- **Secure Processing**: Resumes are sent directly to the AI service's memory and are not saved on the disk.
 
-## 🏗️ Architecture Stack
+## System Architecture
 
-### Frontend (Vercel)
-- **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS & Lucide Icons
-- **State/Routing**: React Router DOM & Axios
+The application is built using a modern technology stack separated into four main components:
 
-### Backend BFF / API Gateway (Render)
-- **Framework**: Node.js & Express.js (TypeScript)
-- **Database ORM**: Prisma
-- **Authentication**: JWT with secure, HTTP-only cookies
-- **Security**: Helmet, Express Rate Limit, Pino logging
+| Component | Technology | Description |
+| --- | --- | --- |
+| **Frontend** | React, TypeScript, Vite | The user interface for candidates and recruiters. |
+| **Backend API** | Node.js, Express, Prisma | Manages users, authentication, and database connections. |
+| **AI Service** | Python, FastAPI | Runs the machine learning models and parses PDF files. |
+| **Database** | PostgreSQL, pgvector | Stores user data and mathematical representations (vectors) of resumes. |
 
-### AI & NLP Service (Hugging Face Spaces)
-- **Framework**: Python 3.11 & FastAPI
-- **Model**: `sentence-transformers/all-MiniLM-L6-v2` (PyTorch)
-- **Processing**: `pdfplumber` for structured PDF extraction
+## Local Development Setup
 
-### Database (Supabase)
-- **Engine**: PostgreSQL 16
-- **Vector Search**: `pgvector` extension for storing and querying 384-dimensional embeddings
+To run the application on your computer, you will need Docker installed. Docker will automatically download the required software and start the services.
 
-## 🚀 Local Development (Docker)
-
-The easiest way to run the entire stack locally is using Docker Compose. It will spin up the Postgres database (with pgvector), the Python AI service, the Node backend, and the Vite frontend.
-
-### Prerequisites
-- Docker and Docker Compose installed.
-
-### Steps
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/harisharen222/HireIntel.git
-   cd HireIntel
-   ```
-2. Set up your environment variables:
-   Copy the example file and edit it:
-   ```bash
-   cp .env.example .env
-   ```
-3. Boot the stack:
-   ```bash
-   docker compose up -d --build
-   ```
-4. Access the services:
-   - Frontend: `http://localhost:5173`
-   - Backend API: `http://localhost:4000/api`
-   - AI Service API: `http://localhost:8000` (Internal only by default)
+```bash
+git clone https://github.com/harisharen222/HireIntel.git
+cd HireIntel
+```
 
-## ☁️ Cloud Deployment (The "Frankenstein" Free Stack)
+2. Configure environment variables:
+```bash
+cp .env.example .env
+```
 
-Because AI models require significant RAM, standard free-tier hosting (like Render or Heroku) cannot run the AI Service. HireIntel is architected to be distributed across 4 free services securely:
+3. Start the application:
+```bash
+docker compose up -d --build
+```
 
-1. **Supabase**: Hosts the PostgreSQL database with the `pgvector` extension.
-2. **Hugging Face Spaces**: Hosts the FastAPI AI service in a 16GB Docker space (secured by `INTERNAL_API_KEY`).
-3. **Render**: Hosts the Node.js backend.
-4. **Vercel**: Hosts the static React frontend.
+The services will be available at:
+- Frontend Interface: `http://localhost:5173`
+- Backend API: `http://localhost:4000/api`
 
-*See the internal documentation for step-by-step deployment instructions.*
+## Cloud Deployment
 
-## 🔒 Security
+Because the AI service requires significant memory, the application is designed to be hosted across four separate free services. 
 
-- All cross-service communication (Backend <-> AI Service) is secured using a shared `INTERNAL_API_KEY`.
-- JWTs are stored in `HttpOnly` cookies to prevent XSS attacks.
-- Strict CORS policies are enforced to only allow the designated frontend origin.
+> [!NOTE]
+> Standard free-tier platforms cannot run the heavy AI model. This specific deployment strategy ensures the application remains entirely free while performing well.
 
----
-*Built from the ground up for modern AI recruitment.*
+### 1. Database (Supabase)
+Create a free PostgreSQL database on Supabase. Run the `docker/init.sql` script in the Supabase SQL editor to create the necessary tables and enable the `pgvector` extension.
+
+### 2. AI Service (Hugging Face Spaces)
+Create a free Docker Space on Hugging Face. Upload the `ai-service` folder. Set the `INTERNAL_API_KEY`, `DATABASE_URL`, and `GROQ_API_KEY` as space secrets.
+
+### 3. Backend API (Render)
+Deploy the `backend` folder as a Web Service on Render. Set the environment variables to connect to your Supabase database and your Hugging Face AI service.
+
+### 4. Frontend (Vercel)
+Deploy the `frontend` folder on Vercel. Set the `VITE_API_URL` environment variable to point to your Render backend URL.
+
+## Security
+
+> [!IMPORTANT]
+> The AI Service must remain internal. It is protected by the `INTERNAL_API_KEY`. Only the Node.js backend should communicate with it directly.
+
+- Authentication is handled using secure, HTTP-only cookies.
+- Cross-Origin Resource Sharing (CORS) is strictly configured to only accept requests from the designated frontend domain.
